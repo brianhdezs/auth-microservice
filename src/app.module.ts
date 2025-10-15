@@ -23,6 +23,9 @@ import { AuthModule } from './auth/auth.module';
         database: configService.get('DB_NAME'),
         entities: [__dirname + '/**/*.entity{.ts,.js}'],
         synchronize: true, // En producción, esto debería ser false
+        ssl: {
+          rejectUnauthorized: false
+        },
       }),
     }),
     

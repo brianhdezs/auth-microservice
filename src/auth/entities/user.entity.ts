@@ -1,35 +1,39 @@
-import { Entity, Column, PrimaryGeneratedColumn, BeforeInsert } from 'typeorm';
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+import { Document } from 'mongoose';
 import * as bcrypt from 'bcrypt';
 
-@Entity()
-export class User {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
-
-  @Column({ unique: true })
+@Schema({ timestamps: true })
+export class User extends Document {
+  @Prop({ required: true, unique: true })
   username: string;
 
-  @Column({ unique: true })
+  @Prop({ required: true, unique: true })
   email: string;
 
-  @Column()
+  @Prop({ required: true })
   name: string;
 
-  @Column({ nullable: true })
-  phoneNumber: string;
+  @Prop()
+  phoneNumber?: string;
 
-  @Column()
+  @Prop({ required: true })
   password: string;
-  
-  @Column('simple-array', { default: [] })
+
+  @Prop({ type: [String], default: [] })
   roles: string[];
 
-  @BeforeInsert()
-  async hashPassword() {
-    this.password = await bcrypt.hash(this.password, 10);
-  }
-
+  // ✅ Método para validar contraseña
   async validatePassword(password: string): Promise<boolean> {
     return bcrypt.compare(password, this.password);
   }
 }
+
+// ✅ Creamos el schema
+export const UserSchema = SchemaFactory.createForClass(User);
+
+// ✅ Hashear antes de guardar
+UserSchema.pre<User>('save', async function (next) {
+  if (!this.isModified('password')) return next();
+  this.password = await bcrypt.hash(this.password, 10);
+  next();
+});

@@ -13,6 +13,7 @@ export class UserDto {
   @ApiProperty()
   email: string;
 
-  @ApiProperty()
+
+  @ApiProperty({ example: ['USER'] })
   roles: string[];
 }

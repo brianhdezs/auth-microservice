@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { JwtService as NestJwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { User } from '../entities/user.entity';
-import { JwtPayload } from '../strategies/jwt.strategy';
+import { JwtPayload } from '../interfaces/jwt-payload.interface'; // 🔹 usa tu interface de payload
 
 @Injectable()
 export class JwtService {
@@ -14,7 +14,7 @@ export class JwtService {
   generateToken(user: User, roles: string[]): string {
     const payload: JwtPayload = {
       email: user.email,
-      sub: user.id,
+      sub: user._id?.toString(), // ✅ cambio: usa _id en vez de id
       name: user.name,
       roles,
     };

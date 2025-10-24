@@ -1,32 +1,41 @@
 import { Module } from '@nestjs/common';
-import { TypeOrmModule } from '@nestjs/typeorm';
+import { MongooseModule } from '@nestjs/mongoose';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { PassportModule } from '@nestjs/passport';
-import { User } from './entities/user.entity';
+import { AuthController } from './controllers/auth.controller';
 import { AuthService } from './services/auth.service';
 import { JwtService } from './services/jwt.service';
-import { AuthController } from './controllers/auth.controller';
 import { JwtStrategy } from './strategies/jwt.strategy';
+import { User, UserSchema } from './entities/user.entity';
 
 @Module({
   imports: [
-    // Importar módulo de TypeORM para el User
-    TypeOrmModule.forFeature([User]),
-    
-    // Configurar módulo de Passport
+    // ✅ Conexión a MongoDB
+    MongooseModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: async (configService: ConfigService) => ({
+        uri: configService.get<string>('MONGO_URI'),
+      }),
+    }),
+
+    // ✅ Registro del esquema User
+    MongooseModule.forFeature([{ name: User.name, schema: UserSchema }]),
+
+    // ✅ Configuración de Passport
     PassportModule.register({ defaultStrategy: 'jwt' }),
-    
-    // Configurar módulo JWT
+
+    // ✅ Configuración de JWT
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: async (configService: ConfigService) => ({
-        secret: configService.get('JWT_SECRET'),
+        secret: configService.get<string>('JWT_SECRET'),
         signOptions: {
-          expiresIn: configService.get('JWT_EXPIRATION'),
-          issuer: configService.get('JWT_ISSUER'),
-          audience: configService.get('JWT_AUDIENCE'),
+          expiresIn: configService.get<string>('JWT_EXPIRATION'),
+          issuer: configService.get<string>('JWT_ISSUER'),
+          audience: configService.get<string>('JWT_AUDIENCE'),
         },
       }),
     }),

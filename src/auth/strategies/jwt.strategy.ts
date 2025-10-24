@@ -2,11 +2,11 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { ConfigService } from '@nestjs/config';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
 import { User } from '../entities/user.entity';
 
-// Definir explícitamente la interfaz para el payload JWT
+// 🔹 Interfaz del payload
 export interface JwtPayload {
   email: string;
   sub: string;
@@ -21,11 +21,9 @@ export interface JwtPayload {
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(
-    @InjectRepository(User)
-    private readonly userRepository: Repository<User>,
     private readonly configService: ConfigService,
+    @InjectModel(User.name) private readonly userModel: Model<User>,
   ) {
-    // Pasar un objeto de configuración único al constructor de Strategy
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
@@ -36,14 +34,13 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   }
 
   async validate(payload: JwtPayload): Promise<User> {
-    const { email } = payload;
-    
-    // Buscar usuario por email
-    const user = await this.userRepository.findOne({ where: { email } });
+    const { sub } = payload;
 
-    // Si no se encuentra el usuario, lanzar excepción
+    // Buscar usuario por ID en MongoDB
+    const user = await this.userModel.findById(sub).exec();
+
     if (!user) {
-      throw new UnauthorizedException('Token no válido');
+      throw new UnauthorizedException('Token no válido o usuario no encontrado');
     }
 
     return user;

@@ -23,7 +23,7 @@ import { Roles } from '../decorators/roles.decorator';
 import { ApiBearerAuth } from '@nestjs/swagger';
 
 @ApiTags('auth')
-@ApiBearerAuth('JWT-auth') // 👈 agrega esto aquí
+@ApiBearerAuth('JWT-auth') // para para Authorize
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}

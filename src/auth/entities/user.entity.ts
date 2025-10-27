@@ -22,6 +22,13 @@ export class User extends Document {
   @Prop({ type: [String], default: [] })
   roles: string[];
 
+  // ✅ Campos automáticos de timestamps (agregados)
+  @Prop()
+  createdAt?: Date;
+
+  @Prop()
+  updatedAt?: Date;
+
   // ✅ Método para validar contraseña
   async validatePassword(password: string): Promise<boolean> {
     return bcrypt.compare(password, this.password);

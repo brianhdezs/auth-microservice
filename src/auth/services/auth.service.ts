@@ -15,19 +15,16 @@ import { LoginResponseDto } from '../dto/login-response.dto';
 import { UserDto } from '../dto/user.dto';
 import * as bcrypt from 'bcrypt';
 
-
-
 @Injectable()
 export class AuthService {
   constructor(
     @InjectModel(User.name) private readonly userModel: Model<User>,
     private readonly jwtService: JwtService,
-  ) { }
+  ) {}
 
   // ✅ Registro de usuario
   async register(registrationRequestDto: RegistrationRequestDto): Promise<void> {
     try {
-      // Verificar si ya existe un usuario con el mismo email
       const existingUser = await this.userModel.findOne({
         email: registrationRequestDto.email.toLowerCase(),
       });
@@ -36,7 +33,6 @@ export class AuthService {
         throw new ConflictException('El usuario con este email ya existe');
       }
 
-      // Crear nuevo usuario
       const user = new this.userModel({
         username: registrationRequestDto.email.toLowerCase(),
         email: registrationRequestDto.email.toLowerCase(),
@@ -46,13 +42,13 @@ export class AuthService {
         roles: [],
       });
 
-      // Guardar usuario (el password se hashea automáticamente en el pre-save)
       await user.save();
     } catch (error) {
       if (error instanceof ConflictException) throw error;
-
       console.error('Error durante el registro:', error);
-      throw new InternalServerErrorException('Error durante el registro del usuario');
+      throw new InternalServerErrorException(
+        'Error durante el registro del usuario',
+      );
     }
   }
 
@@ -60,25 +56,25 @@ export class AuthService {
   async login(loginRequestDto: LoginRequestDto): Promise<LoginResponseDto> {
     const username = loginRequestDto.userName.toLowerCase();
 
-    // Buscar usuario por nombre de usuario o email
     const user = await this.userModel.findOne({
       $or: [{ username }, { email: username }],
     });
 
     if (!user) {
-      throw new UnauthorizedException('El nombre de usuario o la contraseña es incorrecto');
+      throw new UnauthorizedException(
+        'El nombre de usuario o la contraseña es incorrecto',
+      );
     }
 
-    // Validar contraseña
     const isValid = await bcrypt.compare(loginRequestDto.password, user.password);
     if (!isValid) {
-      throw new UnauthorizedException('El nombre de usuario o la contraseña es incorrecto');
+      throw new UnauthorizedException(
+        'El nombre de usuario o la contraseña es incorrecto',
+      );
     }
 
-    // Generar token JWT
     const token = this.jwtService.generateToken(user, user.roles);
 
-    // Crear DTO del usuario
     const userDto: UserDto = {
       id: user._id.toString(),
       email: user.email,
@@ -90,7 +86,7 @@ export class AuthService {
     return { user: userDto, token };
   }
 
-  // ✅ Asignar roles
+  // ✅ Asignar rol
   async assignRole(email: string, roleName: string): Promise<void> {
     const user = await this.userModel.findOne({ email: email.toLowerCase() });
 
@@ -101,6 +97,31 @@ export class AuthService {
     if (!user.roles.includes(roleName)) {
       user.roles.push(roleName);
       await user.save();
+    }
+  }
+
+  // ✅ Listar todos los usuarios (solo admins)
+  async getAllUsers(): Promise<any[]> {
+    try {
+      const users = await this.userModel
+        .find({}, { password: 0, __v: 0 })
+        .sort({ createdAt: -1 })
+        .lean()
+        .exec();
+
+      return users.map((u) => ({
+        id: u._id.toString(),
+        username: u.username,
+        name: u.name,
+        email: u.email,
+        phoneNumber: u.phoneNumber || null,
+        roles: u.roles,
+        createdAt: u.createdAt,
+        updatedAt: u.updatedAt,
+      }));
+    } catch (error) {
+      console.error('Error al obtener usuarios:', error);
+      throw new InternalServerErrorException('Error al listar usuarios');
     }
   }
 }

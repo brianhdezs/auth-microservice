@@ -1,16 +1,34 @@
-import { Controller, Post, Body, HttpStatus } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import {
+  Controller,
+  Post,
+  Body,
+  HttpStatus,
+  Get,
+  UseGuards,
+  HttpException,
+} from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+} from '@nestjs/swagger';
 import { AuthService } from '../services/auth.service';
 import { LoginRequestDto } from '../dto/login-request.dto';
 import { RegistrationRequestDto } from '../dto/registration-request.dto';
 import { ResponseDto } from '../dto/response.dto';
 import { LoginResponseDto } from '../dto/login-response.dto';
+import { JwtAuthGuard } from '../guards/jwt-auth.guard';
+import { RolesGuard } from '../guards/roles.guard';
+import { Roles } from '../decorators/roles.decorator';
+import { ApiBearerAuth } from '@nestjs/swagger';
 
 @ApiTags('auth')
+@ApiBearerAuth('JWT-auth') // 👈 agrega esto aquí
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
+  // ✅ Registro
   @Post('register')
   @ApiOperation({ summary: 'Registrar un nuevo usuario' })
   @ApiResponse({
@@ -37,6 +55,7 @@ export class AuthController {
     return response;
   }
 
+  // ✅ Login
   @Post('login')
   @ApiOperation({ summary: 'Iniciar sesión' })
   @ApiResponse({
@@ -57,6 +76,7 @@ export class AuthController {
     return response;
   }
 
+  // ✅ Asignar rol
   @Post('assignRole')
   @ApiOperation({ summary: 'Asignar rol a un usuario' })
   @ApiResponse({
@@ -91,5 +111,40 @@ export class AuthController {
     response.isSuccess = true;
     response.message = 'Rol asignado exitosamente';
     return response;
+  }
+
+  // ✅ Nuevo endpoint: listar todos los usuarios (solo ADMIN)
+  @Get('users')
+  @ApiOperation({ summary: 'Listar todos los usuarios' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Usuarios obtenidos exitosamente',
+    type: ResponseDto,
+  })
+  @ApiResponse({
+    status: HttpStatus.UNAUTHORIZED,
+    description: 'Token no válido o no proporcionado',
+  })
+  @ApiResponse({
+    status: HttpStatus.FORBIDDEN,
+    description: 'Acceso denegado: se requiere rol ADMIN',
+  })
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN')
+  async getAllUsers(): Promise<ResponseDto> {
+    try {
+      const users = await this.authService.getAllUsers();
+
+      const response = new ResponseDto();
+      response.isSuccess = true;
+      response.message = 'Usuarios obtenidos exitosamente';
+      response.result = users;
+      return response;
+    } catch (error) {
+      throw new HttpException(
+        'Error al obtener los usuarios',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
   }
 }

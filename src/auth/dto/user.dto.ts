@@ -13,11 +13,7 @@ export class UserDto {
   @ApiProperty()
   email: string;
 
-  // 👇 AGREGA ESTA PARTE
-  @ApiProperty({
-    example: 1,
-    description: 'Estado del usuario: 1 = activo, 2 = inactivo',
-  })
+  @ApiProperty()
   status: number;
 
   @ApiProperty({ example: ['USER'] })

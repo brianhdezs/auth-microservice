@@ -1,6 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document } from 'mongoose';
-import * as bcrypt from 'bcrypt';
 
 @Schema({ timestamps: true })
 export class User extends Document {
@@ -13,29 +12,17 @@ export class User extends Document {
   @Prop({ required: true })
   name: string;
 
-  @Prop()
-  phoneNumber?: string;
+  @Prop({ required: true })
+  phoneNumber: string;
 
   @Prop({ required: true })
   password: string;
 
-  @Prop({ type: [String], default: [] })
+  @Prop({ type: [String], default: ['USER'] })
   roles: string[];
 
-  // ✅ Nuevo campo: estado activo/inactivo
-  @Prop({ type: Boolean, default: true })
-  isActive: boolean;
-
-  // ✅ Método para validar contraseña
-  async validatePassword(password: string): Promise<boolean> {
-    return bcrypt.compare(password, this.password);
-  }
+  @Prop({ type: Number, default: 1 }) // 👈 1 = activo, 2 = inactivo
+  status: number;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);
-
-UserSchema.pre<User>('save', async function (next) {
-  if (!this.isModified('password')) return next();
-  this.password = await bcrypt.hash(this.password, 10);
-  next();
-});

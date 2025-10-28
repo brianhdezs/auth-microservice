@@ -3,7 +3,7 @@ import { Document } from 'mongoose';
 import * as bcrypt from 'bcrypt';
 
 @Schema({ timestamps: true })
-export class User extends Document {
+export class UserV2 extends Document {
   @Prop({ required: true, unique: true })
   username: string;
 
@@ -22,19 +22,18 @@ export class User extends Document {
   @Prop({ type: [String], default: [] })
   roles: string[];
 
-  // ✅ Nuevo campo: estado activo/inactivo
-  @Prop({ type: Boolean, default: true })
-  isActive: boolean;
+  // 👇 Nuevo campo status
+  @Prop({ type: Number, default: 1 }) // 1 = activo, 2 = inactivo
+  status: number;
 
-  // ✅ Método para validar contraseña
   async validatePassword(password: string): Promise<boolean> {
     return bcrypt.compare(password, this.password);
   }
 }
 
-export const UserSchema = SchemaFactory.createForClass(User);
+export const UserSchemaV2 = SchemaFactory.createForClass(UserV2);
 
-UserSchema.pre<User>('save', async function (next) {
+UserSchemaV2.pre<UserV2>('save', async function (next) {
   if (!this.isModified('password')) return next();
   this.password = await bcrypt.hash(this.password, 10);
   next();

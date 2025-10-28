@@ -1,46 +1,38 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
-import { ConfigService } from '@nestjs/config';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { User } from '../entities/user.entity';
-
-// 🔹 Interfaz del payload
-export interface JwtPayload {
-  email: string;
-  sub: string;
-  name: string;
-  roles: string[];
-  iat?: number;
-  exp?: number;
-  iss?: string;
-  aud?: string;
-}
+import { JwtPayload } from '../interfaces/jwt-payload.interface';
+import { UserV2 } from '../entities/user-v2.entity';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(
     private readonly configService: ConfigService,
-    @InjectModel(User.name) private readonly userModel: Model<User>,
+    @InjectModel(UserV2.name) private readonly userModel: Model<UserV2>,
   ) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
-      ignoreExpiration: false,
       secretOrKey: configService.get<string>('JWT_SECRET'),
+      ignoreExpiration: false,
       issuer: configService.get<string>('JWT_ISSUER'),
       audience: configService.get<string>('JWT_AUDIENCE'),
     });
   }
 
-  async validate(payload: JwtPayload): Promise<User> {
+  async validate(payload: JwtPayload): Promise<UserV2> {
     const { sub } = payload;
 
-    // Buscar usuario por ID en MongoDB
     const user = await this.userModel.findById(sub).exec();
-
     if (!user) {
       throw new UnauthorizedException('Token no válido o usuario no encontrado');
+    }
+
+    // Si el usuario está inactivo (status 2), no se le permite autenticarse
+    if (user.status === 2) {
+      throw new UnauthorizedException('Tu cuenta está deshabilitada');
     }
 
     return user;

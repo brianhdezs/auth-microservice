@@ -22,7 +22,7 @@ export class UserV2 extends Document {
   @Prop({ type: [String], default: [] })
   roles: string[];
 
-  // 👇 Nuevo campo status
+  // Nuevo campo status
   @Prop({ type: Number, default: 1 }) // 1 = activo, 2 = inactivo
   status: number;
 

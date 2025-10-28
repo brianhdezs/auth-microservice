@@ -4,7 +4,8 @@ import {
   Body,
   HttpStatus,
   Get,
-  Patch,
+  Put,
+  Param,
   UseGuards,
   HttpException,
 } from '@nestjs/common';
@@ -13,6 +14,8 @@ import {
   ApiOperation,
   ApiResponse,
   ApiBearerAuth,
+  ApiBody,
+  ApiParam,
 } from '@nestjs/swagger';
 import { AuthService } from '../services/auth.service';
 import { LoginRequestDto } from '../dto/login-request.dto';
@@ -29,7 +32,7 @@ import { Roles } from '../decorators/roles.decorator';
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
-  // ✅ Registrar usuario con rol y status (1=activo)
+  // Registrar nuevo usuario con rol y estado (por defecto activo)
   @Post('register')
   @ApiOperation({ summary: 'Registrar un nuevo usuario con rol y estado' })
   @ApiResponse({
@@ -45,13 +48,17 @@ export class AuthController {
     return response;
   }
 
-  // ✅ Iniciar sesión
+  // Login (valida si está activo)
   @Post('login')
   @ApiOperation({ summary: 'Iniciar sesión' })
   @ApiResponse({
     status: HttpStatus.OK,
     description: 'Inicio de sesión exitoso',
     type: LoginResponseDto,
+  })
+  @ApiResponse({
+    status: HttpStatus.UNAUTHORIZED,
+    description: 'Credenciales inválidas o usuario inactivo',
   })
   async login(@Body() dto: LoginRequestDto): Promise<ResponseDto> {
     const loginResponse = await this.authService.login(dto);
@@ -61,43 +68,72 @@ export class AuthController {
     return response;
   }
 
-  // ✅ Cambiar estado (solo ADMIN)
-  @Patch('status')
+  // Actualizar estatus (1=activo, 2=inactivo) por correo (username)
+  @Put('status/:username')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN')
-  @ApiOperation({ summary: 'Cambiar estado de un usuario (1=activo, 2=inactivo)' })
-  async changeUserStatus(
-    @Body() body: { email: string; status: number },
+  @ApiOperation({
+    summary:
+      'Actualizar el estatus (1=activo, 2=inactivo) de un usuario por username (correo)',
+  })
+  @ApiParam({ name: 'username', type: String, example: 'pp@example.com' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        status: {
+          type: 'number',
+          example: 2,
+          description: '1 = activo, 2 = inactivo',
+        },
+      },
+      required: ['status'],
+    },
+  })
+  async updateUserStatus(
+    @Param('username') username: string,
+    @Body() body: { status: number },
   ): Promise<ResponseDto> {
-    if (![1, 2].includes(body.status)) {
-      throw new HttpException(
-        'El estado debe ser 1 (activo) o 2 (inactivo)',
-        HttpStatus.BAD_REQUEST,
-      );
+    if (!body || typeof body.status !== 'number') {
+      const response = new ResponseDto();
+      response.isSuccess = false;
+      response.message = 'El campo "status" es requerido';
+      return response;
     }
 
-    await this.authService.toggleUserStatus(body.email, body.status);
+    await this.authService.updateUserStatus(username, body.status);
 
     const response = new ResponseDto();
     response.isSuccess = true;
-    response.message =
-      body.status === 1
-        ? 'Usuario activado correctamente'
-        : 'Usuario desactivado correctamente';
+    response.message = `Usuario ${
+      body.status === 1 ? 'activado' : 'desactivado'
+    } correctamente`;
     return response;
   }
 
-  // ✅ Listar todos los usuarios (solo ADMIN)
+  // Listar todos los usuarios (solo ADMIN)
   @Get('users')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN')
-  @ApiOperation({ summary: 'Listar todos los usuarios con su estado' })
+  @ApiOperation({ summary: 'Listar todos los usuarios con su estatus' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Usuarios obtenidos exitosamente',
+    type: ResponseDto,
+  })
   async getAllUsers(): Promise<ResponseDto> {
-    const users = await this.authService.getAllUsers();
-    const response = new ResponseDto();
-    response.isSuccess = true;
-    response.message = 'Usuarios obtenidos exitosamente';
-    response.result = users;
-    return response;
+    try {
+      const users = await this.authService.getAllUsers();
+      const response = new ResponseDto();
+      response.isSuccess = true;
+      response.message = 'Usuarios obtenidos exitosamente';
+      response.result = users;
+      return response;
+    } catch (error) {
+      throw new HttpException(
+        'Error al obtener los usuarios',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
   }
 }

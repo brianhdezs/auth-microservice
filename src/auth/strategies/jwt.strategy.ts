@@ -1,10 +1,13 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  Injectable,
+  UnauthorizedException,
+  ExecutionContext,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { JwtPayload } from '../interfaces/jwt-payload.interface';
 import { UserV2 } from '../entities/user-v2.entity';
 
 @Injectable()
@@ -19,20 +22,30 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       ignoreExpiration: false,
       issuer: configService.get<string>('JWT_ISSUER'),
       audience: configService.get<string>('JWT_AUDIENCE'),
+      passReqToCallback: true, 
     });
   }
 
-  async validate(payload: JwtPayload): Promise<UserV2> {
+  // validate se ejecuta en cada request protegida por JWT
+  async validate(req: any, payload: any): Promise<UserV2> {
     const { sub } = payload;
-
     const user = await this.userModel.findById(sub).exec();
+
     if (!user) {
       throw new UnauthorizedException('Token no válido o usuario no encontrado');
     }
 
-    // Si el usuario está inactivo (status 2), no se le permite autenticarse
+    const currentPath = req.route?.path || '';
+
+    // Si el usuario está inactivo (2)
     if (user.status === 2) {
-      throw new UnauthorizedException('Tu cuenta está deshabilitada');
+      // Permitir solo si es ADMIN y está accediendo a /auth/status
+      const isAdmin = user.roles.includes('ADMIN');
+      const isStatusEndpoint = currentPath.includes('/auth/status');
+
+      if (!(isAdmin && isStatusEndpoint)) {
+        throw new UnauthorizedException('Tu cuenta está deshabilitada');
+      }
     }
 
     return user;

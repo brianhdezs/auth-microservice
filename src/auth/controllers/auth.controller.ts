@@ -101,7 +101,7 @@ export class AuthController {
       return response;
     }
 
-    await this.authService.updateUserStatus(username, body.status);
+await this.authService.updateStatus(username, body.status);
 
     const response = new ResponseDto();
     response.isSuccess = true;

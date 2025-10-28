@@ -1,29 +1,25 @@
 import { Injectable } from '@nestjs/common';
 import { JwtService as NestJwtService } from '@nestjs/jwt';
-import { ConfigService } from '@nestjs/config';
-import { User } from '../entities/user.entity';
-import { JwtPayload } from '../interfaces/jwt-payload.interface'; // 🔹 usa tu interface de payload
+import { UserV2 } from '../entities/user-v2.entity';
 
 @Injectable()
 export class JwtService {
-  constructor(
-    private readonly jwtService: NestJwtService,
-    private readonly configService: ConfigService,
-  ) {}
+  constructor(private readonly jwtService: NestJwtService) {}
 
-  generateToken(user: User, roles: string[]): string {
-    const payload: JwtPayload = {
+  // ✅ Generar token compatible con UserV2
+  generateToken(user: UserV2, roles: string[]): string {
+    const payload = {
+      sub: user._id.toString(),
       email: user.email,
-      sub: user._id?.toString(), // ✅ cambio: usa _id en vez de id
-      name: user.name,
       roles,
+      status: user.status, // 👈 importante
     };
 
-    return this.jwtService.sign(payload, {
-      secret: this.configService.get<string>('JWT_SECRET'),
-      issuer: this.configService.get<string>('JWT_ISSUER'),
-      audience: this.configService.get<string>('JWT_AUDIENCE'),
-      expiresIn: this.configService.get<string>('JWT_EXPIRATION'),
-    });
+    return this.jwtService.sign(payload);
+  }
+
+  // ✅ Verificar token
+  verifyToken(token: string): any {
+    return this.jwtService.verify(token);
   }
 }

@@ -2,12 +2,11 @@ import {
   Injectable,
   UnauthorizedException,
   ConflictException,
-  InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { User } from '../entities/user.entity';
+import { UserV2 } from '../entities/user-v2.entity';
 import { JwtService } from './jwt.service';
 import { LoginRequestDto } from '../dto/login-request.dto';
 import { RegistrationRequestDto } from '../dto/registration-request.dto';
@@ -18,60 +17,41 @@ import * as bcrypt from 'bcrypt';
 @Injectable()
 export class AuthService {
   constructor(
-    @InjectModel(User.name) private readonly userModel: Model<User>,
+    @InjectModel(UserV2.name) private readonly userModel: Model<UserV2>,
     private readonly jwtService: JwtService,
   ) {}
 
-  // ✅ Registro de usuario
-  async register(registrationRequestDto: RegistrationRequestDto): Promise<void> {
-    try {
-      const existingUser = await this.userModel.findOne({
-        email: registrationRequestDto.email.toLowerCase(),
-      });
+  async register(dto: RegistrationRequestDto): Promise<void> {
+    const existingUser = await this.userModel.findOne({
+      email: dto.email.toLowerCase(),
+    });
+    if (existingUser) throw new ConflictException('El usuario ya existe');
 
-      if (existingUser) {
-        throw new ConflictException('El usuario con este email ya existe');
-      }
+    const user = new this.userModel({
+      username: dto.email.toLowerCase(),
+      email: dto.email.toLowerCase(),
+      name: dto.name,
+      phoneNumber: dto.phoneNumber,
+      password: dto.password,
+      roles: dto.role ? [dto.role.toUpperCase()] : ['USER'],
+      status: 1,
+    });
 
-      const user = new this.userModel({
-        username: registrationRequestDto.email.toLowerCase(),
-        email: registrationRequestDto.email.toLowerCase(),
-        name: registrationRequestDto.name,
-        phoneNumber: registrationRequestDto.phoneNumber,
-        password: registrationRequestDto.password,
-        roles: [],
-      });
-
-      await user.save();
-    } catch (error) {
-      if (error instanceof ConflictException) throw error;
-      console.error('Error durante el registro:', error);
-      throw new InternalServerErrorException(
-        'Error durante el registro del usuario',
-      );
-    }
+    await user.save();
   }
 
-  // ✅ Inicio de sesión
-  async login(loginRequestDto: LoginRequestDto): Promise<LoginResponseDto> {
-    const username = loginRequestDto.userName.toLowerCase();
-
+  async login(dto: LoginRequestDto): Promise<LoginResponseDto> {
+    const username = dto.userName.toLowerCase();
     const user = await this.userModel.findOne({
       $or: [{ username }, { email: username }],
     });
 
-    if (!user) {
-      throw new UnauthorizedException(
-        'El nombre de usuario o la contraseña es incorrecto',
-      );
-    }
+    if (!user) throw new UnauthorizedException('Usuario o contraseña inválidos');
+    if (user.status === 2)
+      throw new UnauthorizedException('Tu cuenta está deshabilitada');
 
-    const isValid = await bcrypt.compare(loginRequestDto.password, user.password);
-    if (!isValid) {
-      throw new UnauthorizedException(
-        'El nombre de usuario o la contraseña es incorrecto',
-      );
-    }
+    const isValid = await bcrypt.compare(dto.password, user.password);
+    if (!isValid) throw new UnauthorizedException('Credenciales incorrectas');
 
     const token = this.jwtService.generateToken(user, user.roles);
 
@@ -81,47 +61,28 @@ export class AuthService {
       name: user.name,
       phoneNumber: user.phoneNumber,
       roles: user.roles,
+      status: user.status,
     };
 
     return { user: userDto, token };
   }
 
-  // ✅ Asignar rol
-  async assignRole(email: string, roleName: string): Promise<void> {
+  async toggleUserStatus(email: string, status: number): Promise<void> {
     const user = await this.userModel.findOne({ email: email.toLowerCase() });
-
-    if (!user) {
-      throw new NotFoundException(`No se encontró un usuario con el email ${email}`);
-    }
-
-    if (!user.roles.includes(roleName)) {
-      user.roles.push(roleName);
-      await user.save();
-    }
+    if (!user) throw new NotFoundException('Usuario no encontrado');
+    user.status = status;
+    await user.save();
   }
 
-  // ✅ Listar todos los usuarios (solo admins)
-  async getAllUsers(): Promise<any[]> {
-    try {
-      const users = await this.userModel
-        .find({}, { password: 0, __v: 0 })
-        .sort({ createdAt: -1 })
-        .lean()
-        .exec();
-
-      return users.map((u) => ({
-        id: u._id.toString(),
-        username: u.username,
-        name: u.name,
-        email: u.email,
-        phoneNumber: u.phoneNumber || null,
-        roles: u.roles,
-        createdAt: u.createdAt,
-        updatedAt: u.updatedAt,
-      }));
-    } catch (error) {
-      console.error('Error al obtener usuarios:', error);
-      throw new InternalServerErrorException('Error al listar usuarios');
-    }
+  async getAllUsers(): Promise<UserDto[]> {
+    const users = await this.userModel.find().select('-password');
+    return users.map((u) => ({
+      id: u._id.toString(),
+      email: u.email,
+      name: u.name,
+      phoneNumber: u.phoneNumber,
+      roles: u.roles,
+      status: u.status,
+    }));
   }
 }

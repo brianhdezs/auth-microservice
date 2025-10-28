@@ -4,6 +4,7 @@ import {
   Body,
   HttpStatus,
   Get,
+  Patch,
   UseGuards,
   HttpException,
 } from '@nestjs/common';
@@ -11,6 +12,7 @@ import {
   ApiTags,
   ApiOperation,
   ApiResponse,
+  ApiBearerAuth,
 } from '@nestjs/swagger';
 import { AuthService } from '../services/auth.service';
 import { LoginRequestDto } from '../dto/login-request.dto';
@@ -20,42 +22,30 @@ import { LoginResponseDto } from '../dto/login-response.dto';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 import { RolesGuard } from '../guards/roles.guard';
 import { Roles } from '../decorators/roles.decorator';
-import { ApiBearerAuth } from '@nestjs/swagger';
 
 @ApiTags('auth')
-@ApiBearerAuth('JWT-auth') // para para Authorize
+@ApiBearerAuth('JWT-auth')
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
-  // ✅ Registro
+  // ✅ Registrar usuario con rol y status (1=activo)
   @Post('register')
-  @ApiOperation({ summary: 'Registrar un nuevo usuario' })
+  @ApiOperation({ summary: 'Registrar un nuevo usuario con rol y estado' })
   @ApiResponse({
     status: HttpStatus.OK,
     description: 'Usuario registrado exitosamente',
     type: ResponseDto,
   })
-  @ApiResponse({
-    status: HttpStatus.BAD_REQUEST,
-    description: 'Datos de registro inválidos',
-  })
-  @ApiResponse({
-    status: HttpStatus.CONFLICT,
-    description: 'El usuario ya existe',
-  })
-  async register(
-    @Body() registrationRequestDto: RegistrationRequestDto,
-  ): Promise<ResponseDto> {
-    await this.authService.register(registrationRequestDto);
-
+  async register(@Body() dto: RegistrationRequestDto): Promise<ResponseDto> {
+    await this.authService.register(dto);
     const response = new ResponseDto();
     response.isSuccess = true;
     response.message = 'Usuario registrado exitosamente';
     return response;
   }
 
-  // ✅ Login
+  // ✅ Iniciar sesión
   @Post('login')
   @ApiOperation({ summary: 'Iniciar sesión' })
   @ApiResponse({
@@ -63,88 +53,51 @@ export class AuthController {
     description: 'Inicio de sesión exitoso',
     type: LoginResponseDto,
   })
-  @ApiResponse({
-    status: HttpStatus.UNAUTHORIZED,
-    description: 'Credenciales inválidas',
-  })
-  async login(@Body() loginRequestDto: LoginRequestDto): Promise<ResponseDto> {
-    const loginResponse = await this.authService.login(loginRequestDto);
-
+  async login(@Body() dto: LoginRequestDto): Promise<ResponseDto> {
+    const loginResponse = await this.authService.login(dto);
     const response = new ResponseDto();
     response.isSuccess = true;
     response.result = loginResponse;
     return response;
   }
 
-  // ✅ Asignar rol
-  @Post('assignRole')
-  @ApiOperation({ summary: 'Asignar rol a un usuario' })
-  @ApiResponse({
-    status: HttpStatus.OK,
-    description: 'Rol asignado exitosamente',
-    type: ResponseDto,
-  })
-  @ApiResponse({
-    status: HttpStatus.NOT_FOUND,
-    description: 'Usuario no encontrado',
-  })
-  @ApiResponse({
-    status: HttpStatus.BAD_REQUEST,
-    description: 'Datos inválidos',
-  })
-  async assignRole(
-    @Body() registrationRequestDto: RegistrationRequestDto,
+  // ✅ Cambiar estado (solo ADMIN)
+  @Patch('status')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN')
+  @ApiOperation({ summary: 'Cambiar estado de un usuario (1=activo, 2=inactivo)' })
+  async changeUserStatus(
+    @Body() body: { email: string; status: number },
   ): Promise<ResponseDto> {
-    if (!registrationRequestDto.role) {
-      const response = new ResponseDto();
-      response.isSuccess = false;
-      response.message = 'El rol es requerido';
-      return response;
+    if (![1, 2].includes(body.status)) {
+      throw new HttpException(
+        'El estado debe ser 1 (activo) o 2 (inactivo)',
+        HttpStatus.BAD_REQUEST,
+      );
     }
 
-    await this.authService.assignRole(
-      registrationRequestDto.email,
-      registrationRequestDto.role.toUpperCase(),
-    );
+    await this.authService.toggleUserStatus(body.email, body.status);
 
     const response = new ResponseDto();
     response.isSuccess = true;
-    response.message = 'Rol asignado exitosamente';
+    response.message =
+      body.status === 1
+        ? 'Usuario activado correctamente'
+        : 'Usuario desactivado correctamente';
     return response;
   }
 
-  // ✅ Nuevo endpoint: listar todos los usuarios (solo ADMIN)
+  // ✅ Listar todos los usuarios (solo ADMIN)
   @Get('users')
-  @ApiOperation({ summary: 'Listar todos los usuarios' })
-  @ApiResponse({
-    status: HttpStatus.OK,
-    description: 'Usuarios obtenidos exitosamente',
-    type: ResponseDto,
-  })
-  @ApiResponse({
-    status: HttpStatus.UNAUTHORIZED,
-    description: 'Token no válido o no proporcionado',
-  })
-  @ApiResponse({
-    status: HttpStatus.FORBIDDEN,
-    description: 'Acceso denegado: se requiere rol ADMIN',
-  })
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN')
+  @ApiOperation({ summary: 'Listar todos los usuarios con su estado' })
   async getAllUsers(): Promise<ResponseDto> {
-    try {
-      const users = await this.authService.getAllUsers();
-
-      const response = new ResponseDto();
-      response.isSuccess = true;
-      response.message = 'Usuarios obtenidos exitosamente';
-      response.result = users;
-      return response;
-    } catch (error) {
-      throw new HttpException(
-        'Error al obtener los usuarios',
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
-    }
+    const users = await this.authService.getAllUsers();
+    const response = new ResponseDto();
+    response.isSuccess = true;
+    response.message = 'Usuarios obtenidos exitosamente';
+    response.result = users;
+    return response;
   }
 }

@@ -3,15 +3,15 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { PassportModule } from '@nestjs/passport';
+
 import { AuthController } from './controllers/auth.controller';
 import { AuthService } from './services/auth.service';
 import { JwtService } from './services/jwt.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
-import { User, UserSchema } from './entities/user.entity';
+import { UserV2, UserSchemaV2 } from './entities/user-v2.entity';
 
 @Module({
   imports: [
-    // ✅ Conexión a MongoDB
     MongooseModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
@@ -20,13 +20,10 @@ import { User, UserSchema } from './entities/user.entity';
       }),
     }),
 
-    // ✅ Registro del esquema User
-    MongooseModule.forFeature([{ name: User.name, schema: UserSchema }]),
+    MongooseModule.forFeature([{ name: UserV2.name, schema: UserSchemaV2 }]),
 
-    // ✅ Configuración de Passport
     PassportModule.register({ defaultStrategy: 'jwt' }),
 
-    // ✅ Configuración de JWT
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],

@@ -18,7 +18,7 @@ export class AuthService {
   constructor(
     @InjectModel(User.name) private readonly userModel: Model<User>,
     private readonly jwtService: JwtService,
-  ) {}
+  ) { }
 
   async register(dto: RegistrationRequestDto): Promise<void> {
     const { email, password, name, phoneNumber, role } = dto;
@@ -93,4 +93,26 @@ export class AuthService {
     user.status = status;
     await user.save();
   }
+async getUserPublic(id: string) {
+  const user = await this.userModel
+    .findById(id)
+    .select('_id username phoneNumber email name')
+    .lean()
+    .exec();
+
+  if (!user) {
+    throw new BadRequestException('Usuario no encontrado');
+  }
+
+  return {
+    _id: user._id.toString(),
+    username: user.username,
+    phoneNumber: user.phoneNumber || 'No disponible',
+    email: user.email,
+    name: user.name,
+  };
+}
+
+
+
 }

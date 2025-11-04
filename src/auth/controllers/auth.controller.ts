@@ -30,7 +30,7 @@ import { Roles } from '../decorators/roles.decorator';
 @ApiBearerAuth('JWT-auth')
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(private readonly authService: AuthService) { }
 
   // Registrar nuevo usuario con rol y estado (por defecto activo)
   @Post('register')
@@ -101,13 +101,12 @@ export class AuthController {
       return response;
     }
 
-await this.authService.updateStatus(username, body.status);
+    await this.authService.updateStatus(username, body.status);
 
     const response = new ResponseDto();
     response.isSuccess = true;
-    response.message = `Usuario ${
-      body.status === 1 ? 'activado' : 'desactivado'
-    } correctamente`;
+    response.message = `Usuario ${body.status === 1 ? 'activado' : 'desactivado'
+      } correctamente`;
     return response;
   }
 
@@ -136,4 +135,19 @@ await this.authService.updateStatus(username, body.status);
       );
     }
   }
+
+  // ===========================================================
+  // 🔹 Endpoint público para obtener un usuario por ID (uso interno)
+  // ===========================================================
+@Get('public/:id')
+@ApiOperation({ summary: 'Obtener datos públicos de un usuario' })
+@ApiParam({ name: 'id', type: String })
+@ApiResponse({ status: 200, description: 'Usuario obtenido exitosamente' })
+async getUserPublic(@Param('id') id: string): Promise<ResponseDto> {
+  const user = await this.authService.getUserPublic(id);
+  const response = new ResponseDto();
+  response.isSuccess = true;
+  response.result = user;
+  return response;
+}
 }

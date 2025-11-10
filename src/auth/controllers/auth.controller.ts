@@ -8,6 +8,8 @@ import {
   Param,
   UseGuards,
   HttpException,
+  Delete,
+  Req,     
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -25,6 +27,7 @@ import { LoginResponseDto } from '../dto/login-response.dto';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 import { RolesGuard } from '../guards/roles.guard';
 import { Roles } from '../decorators/roles.decorator';
+import { Request } from 'express';
 
 @ApiTags('auth')
 @ApiBearerAuth('JWT-auth')
@@ -150,4 +153,19 @@ async getUserPublic(@Param('id') id: string): Promise<ResponseDto> {
   response.result = user;
   return response;
 }
+// ==============================
+  // 🗑️ Eliminar MI propia cuenta
+  // ==============================
+  @Delete('me')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Eliminar mi propia cuenta y mis productos' })
+  @ApiResponse({ status: 200, description: 'Cuenta eliminada' })
+  async deleteMyAccount(@Req() req: Request): Promise<ResponseDto> {
+    const logged = req.user as any; // JWT payload
+    if (!logged || !logged.sub) {
+      throw new HttpException('No autenticado', HttpStatus.UNAUTHORIZED);
+    }
+
+    return await this.authService.deleteUserAndProducts(logged.sub);
+  }
 }

@@ -19,13 +19,19 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     });
   }
 
-  async validate(payload: any): Promise<User> {
-    const { sub } = payload;
-    const user = await this.userModel.findById(sub).exec();
+async validate(payload: any): Promise<any> {
+  const { sub } = payload;
+  const user = await this.userModel.findById(sub).exec();
 
-    if (!user) throw new UnauthorizedException('Token inválido o usuario no encontrado');
-    if (user.status === 2) throw new UnauthorizedException('Tu cuenta está deshabilitada');
+  if (!user) throw new UnauthorizedException('Token inválido o usuario no encontrado');
+  if (user.status === 2) throw new UnauthorizedException('Tu cuenta está deshabilitada');
 
-    return user;
-  }
+  // 🔹 Devuelve un objeto simplificado, no el documento entero
+  return {
+    sub: user._id.toString(),
+    email: user.email,
+    roles: user.roles || [],
+    status: user.status,
+  };
+}
 }

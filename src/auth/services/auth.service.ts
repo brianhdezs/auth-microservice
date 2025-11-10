@@ -2,6 +2,7 @@ import {
   Injectable,
   UnauthorizedException,
   BadRequestException,
+  NotFoundException,
 } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { InjectModel } from '@nestjs/mongoose';
@@ -12,6 +13,8 @@ import { LoginRequestDto } from '../dto/login-request.dto';
 import { LoginResponseDto } from '../dto/login-response.dto';
 import { RegistrationRequestDto } from '../dto/registration-request.dto';
 import { UserDto } from '../dto/user.dto';
+import axios from 'axios';
+import { ResponseDto } from '../dto/response.dto';
 
 @Injectable()
 export class AuthService {
@@ -112,7 +115,36 @@ async getUserPublic(id: string) {
     name: user.name,
   };
 }
+  // ============================================================
+  // 🗑️ Eliminar usuario + sus productos (reutilizable por /me o ADMIN)
+  // ============================================================
+  async deleteUserAndProducts(userId: string): Promise<ResponseDto> {
+  const response = new ResponseDto();
 
+  try {
+    // 1️⃣ Llamar al microservicio de productos
+    const PRODUCT_SERVICE_URL = process.env.PRODUCT_SERVICE_URL || 'http://localhost:3003/api';
+    const INTERNAL_SHARED_TOKEN = process.env.INTERNAL_SHARED_TOKEN;
 
+    await axios.delete(`${PRODUCT_SERVICE_URL}/product/internal/users/${userId}/products`, {
+      headers: {
+        'x-internal-token': INTERNAL_SHARED_TOKEN,
+      },
+    });
 
+    // 2️⃣ Eliminar el usuario de la base de datos
+    await this.userModel.findByIdAndDelete(userId).exec();
+
+    // 3️⃣ Respuesta personalizada
+    response.isSuccess = true;
+    response.message = `Usuario y sus productos eliminados correctamente.`;
+    response.result = { userId };
+
+    return response;
+  } catch (error) {
+    response.isSuccess = false;
+    response.message = 'Error al eliminar usuario y productos: ' + error.message;
+    return response;
+  }
+  }
 }

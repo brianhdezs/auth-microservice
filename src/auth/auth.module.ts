@@ -10,13 +10,14 @@ import { JwtService } from './services/jwt.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { User, UserSchema } from './entities/user.entity';
 
+// importacion de el constraint de las malas palabras
+import { NoProfanityConstraint } from '../common/validators/no-profanity.validator';
+
 @Module({
   imports: [
     ConfigModule,
     PassportModule.register({ defaultStrategy: 'jwt' }),
-
     MongooseModule.forFeature([{ name: User.name, schema: UserSchema }]),
-
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
@@ -31,7 +32,12 @@ import { User, UserSchema } from './entities/user.entity';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtService, JwtStrategy],
+  providers: [
+    AuthService,
+    JwtService,
+    JwtStrategy,
+    NoProfanityConstraint, 
+  ],
   exports: [AuthService, JwtService, JwtStrategy, PassportModule],
 })
 export class AuthModule {}

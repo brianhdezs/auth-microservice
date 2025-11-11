@@ -46,7 +46,7 @@ export class AuthService {
 
   async login(dto: LoginRequestDto): Promise<LoginResponseDto> {
     const user = await this.userModel.findOne({
-      $or: [{ username: dto.userName }, { email: dto.userName }],
+      $or: [{ username: dto.email }, { email: dto.email }],
     });
 
     if (!user)
@@ -96,55 +96,55 @@ export class AuthService {
     user.status = status;
     await user.save();
   }
-async getUserPublic(id: string) {
-  const user = await this.userModel
-    .findById(id)
-    .select('_id username phoneNumber email name')
-    .lean()
-    .exec();
+  async getUserPublic(id: string) {
+    const user = await this.userModel
+      .findById(id)
+      .select('_id username phoneNumber email name')
+      .lean()
+      .exec();
 
-  if (!user) {
-    throw new BadRequestException('Usuario no encontrado');
+    if (!user) {
+      throw new BadRequestException('Usuario no encontrado');
+    }
+
+    return {
+      _id: user._id.toString(),
+      username: user.username,
+      phoneNumber: user.phoneNumber || 'No disponible',
+      email: user.email,
+      name: user.name,
+    };
   }
-
-  return {
-    _id: user._id.toString(),
-    username: user.username,
-    phoneNumber: user.phoneNumber || 'No disponible',
-    email: user.email,
-    name: user.name,
-  };
-}
   // ============================================================
-  // 🗑️ Eliminar usuario + sus productos (reutilizable por /me o ADMIN)
+  // Eliminar usuario + sus productos (reutilizable por /me o ADMIN)
   // ============================================================
   async deleteUserAndProducts(userId: string): Promise<ResponseDto> {
-  const response = new ResponseDto();
+    const response = new ResponseDto();
 
-  try {
-    // 1️⃣ Llamar al microservicio de productos
-    const PRODUCT_SERVICE_URL = process.env.PRODUCT_SERVICE_URL || 'http://localhost:3003/api';
-    const INTERNAL_SHARED_TOKEN = process.env.INTERNAL_SHARED_TOKEN;
+    try {
+      // Llamar al microservicio de productos
+      const PRODUCT_SERVICE_URL = process.env.PRODUCT_SERVICE_URL || 'http://localhost:3003/api';
+      const INTERNAL_SHARED_TOKEN = process.env.INTERNAL_SHARED_TOKEN;
 
-    await axios.delete(`${PRODUCT_SERVICE_URL}/product/internal/users/${userId}/products`, {
-      headers: {
-        'x-internal-token': INTERNAL_SHARED_TOKEN,
-      },
-    });
+      await axios.delete(`${PRODUCT_SERVICE_URL}/product/internal/users/${userId}/products`, {
+        headers: {
+          'x-internal-token': INTERNAL_SHARED_TOKEN,
+        },
+      });
 
-    // 2️⃣ Eliminar el usuario de la base de datos
-    await this.userModel.findByIdAndDelete(userId).exec();
+      // Eliminar el usuario de la base de datos
+      await this.userModel.findByIdAndDelete(userId).exec();
 
-    // 3️⃣ Respuesta personalizada
-    response.isSuccess = true;
-    response.message = `Usuario y sus productos eliminados correctamente.`;
-    response.result = { userId };
+      // Respuesta personalizada
+      response.isSuccess = true;
+      response.message = `Usuario y sus productos eliminados correctamente.`;
+      response.result = { userId };
 
-    return response;
-  } catch (error) {
-    response.isSuccess = false;
-    response.message = 'Error al eliminar usuario y productos: ' + error.message;
-    return response;
-  }
+      return response;
+    } catch (error) {
+      response.isSuccess = false;
+      response.message = 'Error al eliminar usuario y productos: ' + error.message;
+      return response;
+    }
   }
 }

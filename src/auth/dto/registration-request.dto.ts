@@ -1,6 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEmail, IsNotEmpty, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
-// ⬇️ importa el decorador
+import { IsEmail, IsNotEmpty, IsOptional, IsString, Matches, MaxLength, MinLength } from 'class-validator';
 import { NoProfanity } from '../../common/validators/no-profanity.validator';
 
 export class RegistrationRequestDto {
@@ -21,7 +20,6 @@ export class RegistrationRequestDto {
   @ApiProperty({ example: '+1234567890' })
   @IsOptional()
   @IsString()
-  // (normalmente no hace falta filtrar groserías en teléfono)
   phoneNumber?: string;
 
   @ApiProperty({ example: 'password123' })
@@ -36,4 +34,35 @@ export class RegistrationRequestDto {
   @IsString()
   @NoProfanity({ message: 'El rol no puede contener lenguaje ofensivo.' })
   role?: string;
+}
+
+// ACTUALIZAR DATOS DE UN USUARIO
+export class UpdateUserDto {
+  @ApiProperty({ example: 'user@example.com', required: false })
+  @IsOptional()
+  @IsEmail({}, { message: 'Correo electrónico no válido.' })
+  email?: string;
+
+  @ApiProperty({ example: 'John Doe', required: false })
+  @IsOptional()
+  @IsString()
+  @MinLength(2)
+  @MaxLength(50)
+  @NoProfanity({ message: 'El nombre no puede contener lenguaje ofensivo.' })
+  name?: string;
+
+  @ApiProperty({ example: '+1234567890', required: false })
+  @IsOptional()
+  @IsString()
+  @Matches(/^\d{10}$/, {
+    message: 'El número de teléfono debe tener exactamente 10 dígitos.',
+  })
+  phoneNumber?: string;
+
+  @ApiProperty({ example: 'password123', required: false })
+  @IsOptional()
+  @IsString()
+  @MinLength(8, { message: 'La contraseña debe tener al menos 8 caracteres.' })
+  password?: string;
+  username: string;
 }

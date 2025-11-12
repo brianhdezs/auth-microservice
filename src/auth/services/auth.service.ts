@@ -11,7 +11,7 @@ import { JwtService } from './jwt.service';
 import { User } from '../entities/user.entity';
 import { LoginRequestDto } from '../dto/login-request.dto';
 import { LoginResponseDto } from '../dto/login-response.dto';
-import { RegistrationRequestDto } from '../dto/registration-request.dto';
+import { RegistrationRequestDto, UpdateUserDto } from '../dto/registration-request.dto';
 import { UserDto } from '../dto/user.dto';
 import axios from 'axios';
 import { ResponseDto } from '../dto/response.dto';
@@ -146,5 +146,40 @@ export class AuthService {
       response.message = 'Error al eliminar usuario y productos: ' + error.message;
       return response;
     }
+  }
+
+   async updateUserProfile(id: string, dto: UpdateUserDto) {
+    const user = await this.userModel.findById(id);
+    if (!user) throw new NotFoundException('Usuario no encontrado.');
+
+    // Validar email duplicado si se cambia
+    if (dto.email && dto.email !== user.email) {
+      const exists = await this.userModel.findOne({ email: dto.email });
+      if (exists) throw new BadRequestException('El correo ya está en uso.');
+      user.email = dto.email;
+    }
+
+    if (dto.name) user.name = dto.name;
+    if (dto.phoneNumber) user.phoneNumber = dto.phoneNumber;
+
+    // Si el usuario envía una nueva contraseña, la encriptamos
+    if (dto.password) {
+      const salt = await bcrypt.genSalt(10);
+      user.password = await bcrypt.hash(dto.password, salt);
+    }
+
+    await user.save();
+
+    return {
+      message: 'Usuario actualizado correctamente.',
+      result: {
+        id: user._id,
+        email: user.email,
+        name: user.name,
+        phoneNumber: user.phoneNumber,
+        roles: user.roles,
+        status: user.status,
+      },
+    };
   }
 }

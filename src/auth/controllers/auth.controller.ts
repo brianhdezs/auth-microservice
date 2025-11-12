@@ -9,7 +9,7 @@ import {
   UseGuards,
   HttpException,
   Delete,
-  Req,     
+  Req,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -21,7 +21,7 @@ import {
 } from '@nestjs/swagger';
 import { AuthService } from '../services/auth.service';
 import { LoginRequestDto } from '../dto/login-request.dto';
-import { RegistrationRequestDto } from '../dto/registration-request.dto';
+import { RegistrationRequestDto, UpdateUserDto } from '../dto/registration-request.dto';
 import { ResponseDto } from '../dto/response.dto';
 import { LoginResponseDto } from '../dto/login-response.dto';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
@@ -140,21 +140,21 @@ export class AuthController {
   }
 
   // ===========================================================
-  // 🔹 Endpoint público para obtener un usuario por ID (uso interno)
+  // Endpoint público para obtener un usuario por ID (uso interno)
   // ===========================================================
-@Get('public/:id')
-@ApiOperation({ summary: 'Obtener datos públicos de un usuario' })
-@ApiParam({ name: 'id', type: String })
-@ApiResponse({ status: 200, description: 'Usuario obtenido exitosamente' })
-async getUserPublic(@Param('id') id: string): Promise<ResponseDto> {
-  const user = await this.authService.getUserPublic(id);
-  const response = new ResponseDto();
-  response.isSuccess = true;
-  response.result = user;
-  return response;
-}
-// ==============================
-  // 🗑️ Eliminar MI propia cuenta
+  @Get('public/:id')
+  @ApiOperation({ summary: 'Obtener datos públicos de un usuario' })
+  @ApiParam({ name: 'id', type: String })
+  @ApiResponse({ status: 200, description: 'Usuario obtenido exitosamente' })
+  async getUserPublic(@Param('id') id: string): Promise<ResponseDto> {
+    const user = await this.authService.getUserPublic(id);
+    const response = new ResponseDto();
+    response.isSuccess = true;
+    response.result = user;
+    return response;
+  }
+  // ==============================
+  // Eliminar MI propia cuenta
   // ==============================
   @Delete('me')
   @UseGuards(JwtAuthGuard)
@@ -168,4 +168,14 @@ async getUserPublic(@Param('id') id: string): Promise<ResponseDto> {
 
     return await this.authService.deleteUserAndProducts(logged.sub);
   }
+  @ApiBearerAuth('JWT-auth')
+  @UseGuards(JwtAuthGuard)
+  @Put('me')
+  @ApiOperation({ summary: 'Actualizar datos del usuario autenticado' })
+  @ApiResponse({ status: 200, description: 'Datos actualizados correctamente.' })
+  async updateProfile(@Req() req, @Body() dto: UpdateUserDto) {
+    const userId = req.user.sub;
+    return await this.authService.updateUserProfile(userId, dto);
+  }
+
 }

@@ -10,6 +10,7 @@ import {
   HttpException,
   Delete,
   Req,
+  Patch,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -170,12 +171,13 @@ export class AuthController {
   }
   @ApiBearerAuth('JWT-auth')
   @UseGuards(JwtAuthGuard)
-  @Put('me')
+  @Patch('me')
   @ApiOperation({ summary: 'Actualizar datos del usuario autenticado' })
   @ApiResponse({ status: 200, description: 'Datos actualizados correctamente.' })
   async updateProfile(@Req() req, @Body() dto: UpdateUserDto) {
     const userId = req.user.sub;
     return await this.authService.updateUserProfile(userId, dto);
   }
+
 
 }

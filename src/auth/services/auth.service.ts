@@ -148,7 +148,7 @@ export class AuthService {
     }
   }
 
-   async updateUserProfile(id: string, dto: UpdateUserDto) {
+  async updateUserProfile(id: string, dto: UpdateUserDto) {
     const user = await this.userModel.findById(id);
     if (!user) throw new NotFoundException('Usuario no encontrado.');
 
@@ -159,8 +159,9 @@ export class AuthService {
       user.email = dto.email;
     }
 
-    if (dto.name) user.name = dto.name;
-    if (dto.phoneNumber) user.phoneNumber = dto.phoneNumber;
+    if (dto.name !== undefined) user.name = dto.name;
+    if (dto.phoneNumber !== undefined) user.phoneNumber = dto.phoneNumber;
+
 
     // Si el usuario envía una nueva contraseña, la encriptamos
     if (dto.password) {

@@ -36,7 +36,7 @@ export class RegistrationRequestDto {
   role?: string;
 }
 
-// ACTUALIZAR DATOS DE UN USUARIO
+// ACTUALIZAR DATOS DE UN USUARIO (PATCH)
 export class UpdateUserDto {
   @ApiProperty({ example: 'user@example.com', required: false })
   @IsOptional()
@@ -51,7 +51,7 @@ export class UpdateUserDto {
   @NoProfanity({ message: 'El nombre no puede contener lenguaje ofensivo.' })
   name?: string;
 
-  @ApiProperty({ example: '+1234567890', required: false })
+  @ApiProperty({ example: '1234567890', required: false })
   @IsOptional()
   @IsString()
   @Matches(/^\d{10}$/, {
@@ -64,5 +64,10 @@ export class UpdateUserDto {
   @IsString()
   @MinLength(8, { message: 'La contraseña debe tener al menos 8 caracteres.' })
   password?: string;
-  username: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  username?: string;
 }
+
